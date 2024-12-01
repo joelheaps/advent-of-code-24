@@ -9,17 +9,16 @@
 ```
 
 ```elixir
-split_pairs = String.trim(input)
+interspersed_lists = String.trim(input)
   |> String.split("\n") 
-  |> Enum.map(fn pairs -> String.split(pairs) end) 
-  |> Enum.map(fn [str1, str2] -> [String.to_integer(str1), String.to_integer(str2)] end)
+  |> Enum.flat_map(fn pairs -> String.split(pairs) end) 
+  |> Enum.map(fn val -> String.to_integer(val) end)
 ```
 
 ```elixir
-flattened_pairs = List.flatten(split_pairs)
 {sorted_a, sorted_b} = {
-  Enum.take_every(flattened_pairs, 2) |> Enum.sort(),
-  Enum.drop_every(flattened_pairs, 2) |> Enum.sort()
+  Enum.take_every(interspersed_lists, 2) |> Enum.sort(),
+  Enum.drop_every(interspersed_lists, 2) |> Enum.sort()
 }
 ```
 
