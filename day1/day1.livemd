@@ -1,0 +1,38 @@
+<!-- livebook:{"file_entries":[{"name":"example_input.txt","type":"attachment"},{"name":"input.txt","type":"attachment"}]} -->
+
+# Day 1
+
+## Part 1
+
+```elixir
+{:ok, input} = File.read("/Users/joel/Documents/projects/advent-of-code-24/day1/files/example_input.txt")
+```
+
+```elixir
+split_pairs = String.trim(input)
+  |> String.split("\n") 
+  |> Enum.map(fn pairs -> String.split(pairs) end) 
+  |> Enum.map(fn [str1, str2] -> [String.to_integer(str1), String.to_integer(str2)] end)
+```
+
+```elixir
+flattened_pairs = List.flatten(split_pairs)
+{sorted_a, sorted_b} = {
+  Enum.take_every(flattened_pairs, 2) |> Enum.sort(),
+  Enum.drop_every(flattened_pairs, 2) |> Enum.sort()
+}
+```
+
+```elixir
+diff = Enum.zip([sorted_a, sorted_b])
+  |> Enum.map(fn {a, b} -> abs(a - b) end)
+  |> Enum.sum()
+```
+
+## Part 2
+
+```elixir
+frequencies = Enum.frequencies(sorted_b)
+sum = Enum.map(sorted_a, fn elem -> elem * Map.get(frequencies, elem, 0) end) 
+  |> Enum.sum()
+```
