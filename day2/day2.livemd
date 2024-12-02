@@ -22,32 +22,25 @@ rows = String.trim(input)
 ```elixir
 defmodule Checker do
   def check(row = [first, second | _]) do
-    cond do
-      first > second -> check_decreasing(row)
-      first < second -> check_increasing(row)
-      first == second -> :unsafe
-    end
+    if first >= second, do: do_check(row, :decreasing),
+      else: do_check(row, :increasing)
   end
   
-  defp check_decreasing([first, second]) when first > second and second >= first - 3 do
-    :safe
-  end
-  defp check_decreasing([first, second | rest]) when first > second and second >= first - 3 do
-    check_decreasing([second | rest])
-  end
-  defp check_decreasing(_) do
-    :unsafe
+  defp do_check([_], _), do: :safe  # One element remaining
+ 
+  defp do_check([first, second | rest], direction)
+    when (direction == :decreasing)
+      and (first > second and second >= first - 3) do
+    do_check([second | rest], direction)
   end
   
-  defp check_increasing([first, second | []]) when first < second and second <= first + 3 do
-    :safe
+  defp do_check([first, second | rest], direction)
+    when (direction == :increasing)
+      and (first < second and second <= first + 3) do
+    do_check([second | rest], direction)
   end
-  defp check_increasing([first, second | rest]) when first < second and second <= first + 3 do
-    check_increasing([second | rest])
-  end
-  defp check_increasing(_) do
-    :unsafe
-  end
+  
+  defp do_check(_, _), do: :unsafe  # Default
 end
 
 result = Enum.map(rows, fn row -> Checker.check(row) end)
@@ -58,23 +51,15 @@ result = Enum.map(rows, fn row -> Checker.check(row) end)
 ## Part 2
 
 ```elixir
-defmodule Terrible do
-  def permutate_row(row) do
-    last = length(row) - 1
-    do_permutate_row(row, [], 0, last)
-  end
-  defp do_permutate_row(row, permutations, index, last) when index <= last do
-    popped = List.delete_at(row, index)
-    do_permutate_row(row, [popped | permutations], index + 1, last)
-  end
-  defp do_permutate_row(_, permutations, _, _), do: permutations
-end
+permutate = fn row -> Enum.map(
+    0..length(row) - 1,
+    fn index -> List.delete_at(row, index) end
+  ) end
 
-permutations = Enum.map(rows, fn row -> Terrible.permutate_row(row) end)
-results = Enum.map(permutations, fn pm_set ->
-  Enum.map(pm_set, fn permutation ->
-    Checker.check(permutation)
-  end)
-end)
-  |> Enum.filter(fn x -> :safe in x end) |> Enum.count()
+result = Enum.map(rows, fn row -> permutate.(row) end)
+  |> Enum.map(fn permutations ->
+      Enum.map(permutations, fn permutation -> Checker.check(permutation) end)
+     end)
+  |> Enum.filter(fn results -> :safe in results end)
+  |> Enum.count()
 ```
