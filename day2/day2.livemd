@@ -2,14 +2,18 @@
 
 # Day 2
 
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
 ## Part 1
 
 https://adventofcode.com/2024/day/2
 
 ```elixir
-{:ok, input} = File.read(
-  "/Users/joel/Documents/projects/advent-of-code-24/day2/files/input.txt"
-)
+input = Kino.FS.file_path("input.txt") |> File.read!()
 
 rows = String.trim(input)
   |> String.split("\n") 
@@ -52,14 +56,14 @@ result = Enum.map(rows, fn row -> Checker.check(row) end)
 
 ```elixir
 permutate = fn row -> Enum.map(
-    0..length(row) - 1,
+    0..length(row),
     fn index -> List.delete_at(row, index) end
   ) end
 
 result = Enum.map(rows, fn row -> permutate.(row) end)
   |> Enum.map(fn permutations ->
-      Enum.map(permutations, fn permutation -> Checker.check(permutation) end)
+      Enum.map(permutations, fn perm -> Checker.check(perm) end)
      end)
-  |> Enum.filter(fn results -> :safe in results end)
+  |> Enum.filter(fn row_results -> :safe in row_results end)
   |> Enum.count()
 ```

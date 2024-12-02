@@ -2,10 +2,16 @@
 
 # Day 1
 
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
 ## Part 1
 
 ```elixir
-{:ok, input} = File.read("/Users/joel/Documents/projects/advent-of-code-24/day1/files/example_input.txt")
+input = Kino.FS.file_path("input.txt") |> File.read!()
 ```
 
 ```elixir
