@@ -1,0 +1,80 @@
+<!-- livebook:{"file_entries":[{"name":"example_input.txt","type":"attachment"},{"name":"input.txt","type":"attachment"}]} -->
+
+# Day 2
+
+## Part 1
+
+https://adventofcode.com/2024/day/2
+
+```elixir
+{:ok, input} = File.read(
+  "/Users/joel/Documents/projects/advent-of-code-24/day2/files/input.txt"
+)
+
+rows = String.trim(input)
+  |> String.split("\n") 
+  |> Enum.map(fn raw_row -> String.split(raw_row) end)
+  |> Enum.map(fn row ->
+    Enum.map(row, fn item -> String.to_integer(item) end)
+  end)
+```
+
+```elixir
+defmodule Checker do
+  def check(row = [first, second | _]) do
+    cond do
+      first > second -> check_decreasing(row)
+      first < second -> check_increasing(row)
+      first == second -> :unsafe
+    end
+  end
+  
+  defp check_decreasing([first, second]) when first > second and second >= first - 3 do
+    :safe
+  end
+  defp check_decreasing([first, second | rest]) when first > second and second >= first - 3 do
+    check_decreasing([second | rest])
+  end
+  defp check_decreasing(_) do
+    :unsafe
+  end
+  
+  defp check_increasing([first, second | []]) when first < second and second <= first + 3 do
+    :safe
+  end
+  defp check_increasing([first, second | rest]) when first < second and second <= first + 3 do
+    check_increasing([second | rest])
+  end
+  defp check_increasing(_) do
+    :unsafe
+  end
+end
+
+result = Enum.map(rows, fn row -> Checker.check(row) end)
+  |> Enum.filter(fn val -> val == :safe end)
+  |> Enum.count()
+```
+
+## Part 2
+
+```elixir
+defmodule Terrible do
+  def permutate_row(row) do
+    last = length(row) - 1
+    do_permutate_row(row, [], 0, last)
+  end
+  defp do_permutate_row(row, permutations, index, last) when index <= last do
+    popped = List.delete_at(row, index)
+    do_permutate_row(row, [popped | permutations], index + 1, last)
+  end
+  defp do_permutate_row(_, permutations, _, _), do: permutations
+end
+
+permutations = Enum.map(rows, fn row -> Terrible.permutate_row(row) end)
+results = Enum.map(permutations, fn pm_set ->
+  Enum.map(pm_set, fn permutation ->
+    Checker.check(permutation)
+  end)
+end)
+  |> Enum.filter(fn x -> :safe in x end) |> Enum.count()
+```
