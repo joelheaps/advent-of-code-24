@@ -2,4 +2,4 @@
 
 *Advent of Code 2024 puzzles solved using Elixir.*
 
-I'm working on these with [Elixir LiveBook](https://livebook.dev/), which renders code blocks (like Python's Jupyter notebooks), allowing incremental execution of code and inspection of outputs.  Conveniently, project files are also saved as simple Markdown files.
+I'm working on these solution with [Elixir LiveBook](https://livebook.dev/), which, like Jupyter notebooks, allows mixing Markdown and code, and incrementally executing code blocks.  In general, I try to push the first (messy, horrible) working version, and then clean it up in a later commit.
