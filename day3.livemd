@@ -1,0 +1,44 @@
+<!-- livebook:{"file_entries":[{"name":"day3_example.txt","type":"attachment"},{"name":"day3_example2.txt","type":"attachment"},{"name":"day3_input.txt","type":"attachment"}]} -->
+
+# Day 3
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+## Part 1
+
+https://adventofcode.com/2024/day/3
+
+```elixir
+input = Kino.FS.file_path("day3_input.txt") |> File.read!()
+
+do_math = fn input_ -> 
+  Regex.scan(~r/mul\((\d+)(?:,)(\d+)\)/, input_, capture: :all_but_first)
+  |> Enum.map(fn match -> Enum.map(match, &String.to_integer/1) end)
+  |> Enum.map(&Enum.product/1)
+  |> Enum.sum()
+end
+
+result = do_math.(input)
+```
+
+## Part 2
+
+```elixir
+removable_sections = Regex.scan(~r/don\'t\(\).+?do\(\)/s, input)
+
+defmodule Remover do
+  def remove_all(string, []), do: string
+  def remove_all(string, [substring | remaining]) do
+    new = String.replace(string, substring, "")
+    remove_all(new, remaining)
+  end
+end
+
+result = Remover.remove_all(input, removable_sections)
+  |> do_math.()
+
+```
