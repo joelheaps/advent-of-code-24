@@ -1,0 +1,132 @@
+<!-- livebook:{"file_entries":[{"name":"day4_example.txt","type":"attachment"},{"name":"day4_input.txt","type":"attachment"}]} -->
+
+# Day 4
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+## Part 1
+
+https://adventofcode.com/2024/day/4
+
+```elixir
+input = Kino.FS.file_path("day4_input.txt")
+  |> File.read!()
+  |> String.trim()
+  |> String.split("\n")
+  |> Enum.map(fn line ->
+    String.codepoints(line)  # Split characters
+  end)
+```
+
+```elixir
+defmodule Searcher do
+  def get_next_pos({row, col}, direction) do
+    {row, col} = case direction do
+      :r -> {row, col + 1}
+      :l -> {row, col - 1}
+      :d -> {row + 1, col}
+      :dr -> {row + 1, col + 1}
+      :dl -> {row + 1, col - 1}
+      :u -> {row - 1, col}
+      :ur -> {row - 1, col + 1}
+      :ul -> {row - 1, col - 1}
+    end
+    if row < 0 or col < 0, do: raise("Illegal move.")
+    {row, col}
+  end
+
+  def check_for_letter_at([letter], array, {row, col}, _) do
+    if letter == Enum.at(array, row) |> Enum.at(col) do
+      :found
+    else
+      :not_found
+    end
+  end
+  def check_for_letter_at([letter | rest], array, {row, col}, direction) do
+    try do
+      ^letter = Enum.at(array, row) |> Enum.at(col)
+      new_pos = get_next_pos({row, col}, direction)
+      check_for_letter_at(rest, array, new_pos, direction)
+    rescue
+      _ -> :not_found
+    end
+  end
+  
+  # Just a bool version of above
+  defp is_letter_at(letter, array, {row, col}) do
+    letter == Enum.at(array, row) |> Enum.at(col)
+  end
+
+  def get_value_at({row, col}, array) do
+    Enum.at(array, row) |> Enum.at(col)
+  end
+
+  def get_letter_positions(letter, array) do
+    last_row_index = length(array) - 1
+    first_row = Enum.at(array, 0)
+    last_col_index = length(first_row) - 1
+
+    Enum.map(0..last_row_index, fn row ->
+      Enum.map(0..last_col_index, fn col ->
+        {
+          is_letter_at(letter, array, {row, col}),
+          {row, col}
+        }
+      end)
+    end)
+    |> List.flatten()
+    |> Enum.filter(fn {val, _} -> val end)
+    |> Enum.map(fn {_, pos} -> pos end)
+  end
+end
+
+directions = [:r, :l, :d, :dr, :dl, :u, :ur, :ul]
+letters = ["X", "M", "A", "S"]
+
+wcount = fn word -> 
+  Searcher.get_letter_positions(List.first(word), input)
+  |> Enum.map(fn pos ->
+    Enum.map(directions, fn dir ->
+      {pos, Searcher.check_for_letter_at(word, input, pos, dir)}
+    end)
+  end)
+  |> List.flatten()
+  |> Enum.filter(fn {_, val} -> val == :found end)
+  |> Enum.count()
+end
+
+wcount.(letters)
+```
+
+## Part 2
+
+```elixir
+defmodule XSearcher do
+  import Searcher
+  
+  def is_valid_x_mas?(a_pos, array) do
+    try do
+      diag1 = 
+        [get_next_pos(a_pos, :ur), get_next_pos(a_pos, :dl)]
+        |> Enum.map(fn pos -> get_value_at(pos, array) end)
+      diag2 =
+        [get_next_pos(a_pos, :dr), get_next_pos(a_pos, :ul)]
+        |> Enum.map(fn pos -> get_value_at(pos, array) end)
+  
+      "M" in diag1 and "S" in diag1 and "M" in diag2 and "S" in diag2
+    rescue
+      _ -> false
+    end
+  end
+end
+
+a_positions = Searcher.get_letter_positions("A", input)
+validity = Enum.map(a_positions, fn pos ->
+  XSearcher.is_valid_x_mas?(pos, input)
+end)
+count = validity |> Enum.filter(& &1) |> Enum.count()
+```
