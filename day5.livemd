@@ -1,0 +1,128 @@
+<!-- livebook:{"file_entries":[{"name":"day4_example.txt","type":"attachment"},{"name":"day4_input.txt","type":"attachment"},{"name":"day5_example.txt","type":"attachment"},{"name":"day5_input.txt","type":"attachment"}]} -->
+
+# Day 5
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+## Part 1
+
+https://adventofcode.com/2024/day/5
+
+```elixir
+[rules, updates] = Kino.FS.file_path("day5_input.txt")
+  |> File.read!()
+  |> String.trim()
+  |> String.split("\n\n")
+  |> Enum.map(fn section ->
+    String.trim(section)
+    |> String.split("\n")
+  end)
+
+rules = Enum.map(rules, fn pair ->
+  String.split(pair, "|") 
+  |> Enum.map(&String.to_integer/1)
+  |> List.to_tuple()
+end)
+
+updates = Enum.map(updates, fn group ->
+  String.split(group, ",")
+  |> Enum.map(&String.to_integer/1)
+end)
+```
+
+```elixir
+defmodule UpdateValidator do
+  @doc """
+  Check if all {x before y} rules pass for the given update.
+  """
+  def is_valid_update?(update, rules) do
+    not Enum.any?(rules, fn {x, y} -> not is_before?(x, y, update) end)
+  end
+
+  @doc """
+  Check if x occurs before y in the given list
+  """
+  def is_before?(x, y, list = [first | rest]) do
+    if x in list and y in list do
+      if y == first, do: false, else: is_before?(x, y, rest)
+    else
+      true
+    end
+  end
+end
+
+start = System.monotonic_time(:microsecond)
+
+sum_middle_numbers = fn updates -> updates
+  |> Enum.map(& {length(&1) |> Integer.floor_div(2), &1})  # Get index of middle num.
+  |> Enum.map(fn {middle_index, update} ->
+      Enum.at(update, middle_index)
+    end)  # Extract value at index
+  |> Enum.sum()
+end
+
+valid_updates = Enum.filter(updates, fn update ->
+  UpdateValidator.is_valid_update?(update, rules)
+end)
+
+result = sum_middle_numbers.(valid_updates)
+IO.puts("Result: #{result}")
+
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
+```
+
+## Part 2
+
+```elixir
+defmodule UpdateFixer do
+  import UpdateValidator
+
+  @doc """
+  Recursively applies fixes until no more
+  modifications are made (some fixes break other rules).
+  """
+  def fix_update(update = [ _ | _ ], rules) do
+    fix_update({true, update}, rules)
+  end
+  def fix_update({true, update}, rules) do
+    do_fix_update(update, rules) |> fix_update(rules)
+  end
+  def fix_update({false, update}, _), do: update
+
+  # Applies fixes for all rules by swapping values.
+  defp do_fix_update(update, rules, modified? \\ false)
+  defp do_fix_update(update, [], modified?), do: {modified?, update}
+  defp do_fix_update(update, [{x, y} | rules], modified?) do
+    {update_, modified?} = if not is_before?(x, y, update) do
+      # Swap values if this rule failed validation.
+      update_ = update
+        |> Enum.map(& {&1})  # Pack into tuple to make compat. with keyreplace
+        |> List.keyreplace(x, 0, {y}) 
+        |> List.keyreplace(y, 0, {x})
+        |> Enum.map(fn {val} -> val end)
+      {update_, true}
+    else
+      # Otherwise, pass update as-is.
+      {update, modified?}
+    end
+    # Check next rule.
+    do_fix_update(update_, rules, modified?)
+  end
+end
+
+start = System.monotonic_time(:microsecond)
+
+result = updates -- valid_updates  # Invalid updates
+  |> Enum.map(fn update -> UpdateFixer.fix_update(update, rules) end)
+  |> sum_middle_numbers.()
+
+IO.puts("Result: #{result}")
+
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
+```
