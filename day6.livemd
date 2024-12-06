@@ -1,0 +1,85 @@
+<!-- livebook:{"file_entries":[{"name":"day6_example.txt","type":"attachment"},{"name":"day6_input.txt","type":"attachment"}]} -->
+
+# Day 6
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+## Part 1
+
+```elixir
+matrix = Kino.FS.file_path("day6_input.txt")
+  |> File.read!()
+  |> String.trim()
+  |> String.split("\n")
+  |> Enum.map(&String.graphemes/1)
+
+matrix_to_map = fn matrix ->
+  row_count = length(matrix) - 1
+  col_count = length(Enum.at(matrix, 0)) - 1
+
+  Enum.flat_map(0..row_count, fn row ->
+    Enum.map(0..col_count, fn col ->
+      {
+        {row, col},
+        Enum.at(matrix, row) |> Enum.at(col)
+      }
+    end)
+  end)
+  |> Enum.into(%{})
+end
+
+grid = matrix_to_map.(matrix)
+```
+
+```elixir
+defmodule GuardMover do
+  def next_pos(dir, {r, c}) do
+    case dir do
+      "^" -> {r - 1, c}
+      "<" -> {r, c - 1}
+      ">" -> {r, c + 1}
+      "v" -> {r + 1, c}
+    end
+  end
+
+  def turn_right(dir) do
+    case dir do
+      "^" -> ">"
+      "<" -> "^"
+      ">" -> "v"
+      "v" -> "<"
+    end
+  end
+  
+  def move_guard(grid, dir, pos) do
+    try do
+      grid = Map.put(grid, pos, :x)
+      
+      try_pos = next_pos(dir, pos)
+      {dir, next_pos} = if Map.fetch!(grid, try_pos) == "#" do
+        new_dir = turn_right(dir)
+        {new_dir, next_pos(new_dir, pos)}
+      else
+        {dir, try_pos}
+      end
+      move_guard(grid, dir, next_pos)
+    rescue
+      KeyError ->
+        Map.put(grid, pos, :x)
+    end
+  end
+end
+
+{guard_pos, dir} = Map.filter(grid, fn {_, value} -> value in ["^", "<", ">", "v"] end)
+  |> Map.to_list()
+  |> Enum.at(0)
+
+end_grid = GuardMover.move_guard(grid, dir, guard_pos)
+
+count = Map.filter(end_grid, fn {_, value} -> value == :x end)
+  |> Enum.count()
+```
