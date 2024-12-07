@@ -26,43 +26,54 @@ calibrations = Kino.FS.file_path("day7-in.txt")
 
 ```elixir
 defmodule Mathinator do
-  def try_operators(values), do: Enum.reverse(values) |> do_try_operators()
-  defp do_try_operators([number]), do: [number]
-  defp do_try_operators([first | rest]) do
-    result_mult = for number <- do_try_operators(rest), do: first * number
-    result_add = for number <- do_try_operators(rest), do: first + number
-    result_mult ++ result_add
+  def num_if_matched({expected_result, values}) do
+    if expected_result in try_ops(values), do: expected_result, else: 0
+  end
+  
+  defp try_ops([only]), do: [only]
+  defp try_ops([first | rest]) do
+    try_ops(rest) |> Enum.flat_map(& [first + &1, first * &1])
   end
 end
 
+start = System.monotonic_time(:microsecond)
+
 result = calibrations
-  |> Enum.filter(fn {result, values} ->
-    result in Mathinator.try_operators(values)
-  end)
-  |> Enum.map(fn {result, _} -> result end)
+  |> Stream.map(fn {result, values} -> {result, Enum.reverse(values)} end)
+  |> Stream.map(&Mathinator.num_if_matched/1)
   |> Enum.sum()
+
+IO.puts("Result: #{result}")
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
 ```
 
 ## Part 2
 
 ```elixir
 defmodule Mathinator2 do
-  def try_operators(values), do: Enum.reverse(values) |> do_try_operators()
-  defp do_try_operators([number]), do: [number]
-  defp do_try_operators([first | rest]) do
-    result_mult = for number <- do_try_operators(rest), do: first * number
-    result_add = for number <- do_try_operators(rest), do: first + number
-    result_concat = for number <- do_try_operators(rest), do:
-      Integer.to_string(number) <> Integer.to_string(first) |> String.to_integer()
-
-    result_mult ++ result_add ++ result_concat
+  def num_if_matched({expected_result, values}) do
+    if expected_result in try_ops(values), do: expected_result, else: 0
+  end
+  
+  defp concat(a, b) do
+    :math.pow(10, (1 + floor(:math.log10(b)))) * a + b |> round()
+  end
+  
+  defp try_ops([only]), do: [only]
+  defp try_ops([first | rest]) do
+    try_ops(rest) |> Stream.flat_map(& [&1 + first, &1 * first, concat(&1, first)])
   end
 end
 
+start = System.monotonic_time(:microsecond)
+
 result = calibrations
-  |> Enum.filter(fn {result, values} ->
-    result in Mathinator2.try_operators(values)
-  end)
-  |> Enum.map(fn {result, _} -> result end)
-  |> Enum.sum()
+  |> Stream.map(fn {result, values} -> {result, Enum.reverse(values)} end)
+  |> Task.async_stream(&Mathinator2.num_if_matched/1)
+  |> Enum.reduce(0, fn {:ok, num}, acc -> num + acc end)
+
+IO.puts("Result: #{result}")
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
 ```
