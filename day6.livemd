@@ -37,8 +37,8 @@ grid = matrix_to_map.(matrix)
 
 ```elixir
 defmodule GuardMover do
-  def next_pos(dir, {r, c}) do
-    case dir do
+  def next_pos({r, c}, direction) do
+    case direction do
       "^" -> {r - 1, c}
       "<" -> {r, c - 1}
       ">" -> {r, c + 1}
@@ -46,30 +46,33 @@ defmodule GuardMover do
     end
   end
 
-  def turn_right(dir) do
-    case dir do
+  def turn_right(direction) do
+    case direction do
       "^" -> ">"
       "<" -> "^"
       ">" -> "v"
       "v" -> "<"
     end
   end
+
+  def walk_grid(grid, position, direction) do
+    grid = Map.put(grid, position, :x)
+    
+    {new_position, new_direction} = move_guard(grid, position, direction)
+    if new_position == nil, do: grid, else: walk_grid(grid, new_position, new_direction)
+  end
   
-  def move_guard(grid, dir, pos) do
-    try do
-      grid = Map.put(grid, pos, :x)
-      
-      try_pos = next_pos(dir, pos)
-      {dir, next_pos} = if Map.fetch!(grid, try_pos) == "#" do
-        new_dir = turn_right(dir)
-        {new_dir, next_pos(new_dir, pos)}
-      else
-        {dir, try_pos}
-      end
-      move_guard(grid, dir, next_pos)
-    rescue
-      KeyError ->
-        Map.put(grid, pos, :x)
+  def move_guard(grid, position, direction) do
+    try_position = next_pos(position, direction)
+    
+    case Map.get(grid, try_position, nil) do
+      "#" ->
+        new_direction = turn_right(direction)
+        new_position = next_pos(position, new_direction)
+        {new_position, new_direction}
+      nil -> 
+        {nil, nil}
+      _ -> {try_position, direction}
     end
   end
 end
@@ -78,8 +81,16 @@ end
   |> Map.to_list()
   |> Enum.at(0)
 
-end_grid = GuardMover.move_guard(grid, dir, guard_pos)
+end_grid = GuardMover.walk_grid(grid, guard_pos, dir)
 
 count = Map.filter(end_grid, fn {_, value} -> value == :x end)
   |> Enum.count()
+```
+
+## Part 2
+
+```elixir
+def GuardLooper do
+  import GuardMover
+end
 ```
