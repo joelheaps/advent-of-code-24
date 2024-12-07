@@ -37,7 +37,7 @@ grid = matrix_to_map.(matrix)
 
 ```elixir
 defmodule GuardMover do
-  def next_position({r, c}, direction, grid) do
+  def next_position(direction, {r, c}, grid) do
     try_position = case direction do
       "^" -> {r - 1, c}
       "<" -> {r, c - 1}
@@ -46,27 +46,22 @@ defmodule GuardMover do
     end
     
     if Map.fetch!(grid, try_position) == "#" do
-      direction = turn_right(direction)
-      next_position({r, c}, direction, grid)
+      turn_right(direction) |> next_position({r, c}, grid)
     else
       {try_position, direction}
     end
   end
 
-  defp turn_right(direction) do
-    case direction do
-      "^" -> ">"
-      "<" -> "^"
-      ">" -> "v"
-      "v" -> "<"
-    end
-  end
+  defp turn_right("^"), do: ">"
+  defp turn_right("<"), do: "^"
+  defp turn_right(">"), do: "v"
+  defp turn_right("v"), do: "<"
 
   def walk_grid(grid, position, direction) do
     grid = Map.put(grid, position, :x)  # Mark as visited
 
     try do
-      {new_position, new_direction} = next_position(position, direction, grid)
+      {new_position, new_direction} = next_position(direction, position, grid)
       walk_grid(grid, new_position, new_direction)
     rescue
       KeyError -> grid
@@ -76,11 +71,11 @@ end
 
 start = System.monotonic_time(:microsecond)
 
-{guard_pos, dir} = Map.filter(grid, fn {_, value} -> value in ["^", "<", ">", "v"] end)
+{guard_pos, direction} = Map.filter(grid, fn {_, value} -> value in ["^", "<", ">", "v"] end)
   |> Map.to_list()
   |> Enum.at(0)
 
-part1_end_grid = GuardMover.walk_grid(grid, guard_pos, dir)
+part1_end_grid = GuardMover.walk_grid(grid, guard_pos, direction)
 
 result = Map.filter(part1_end_grid, fn {_, value} -> value == :x end)
   |> Enum.count()
@@ -102,7 +97,7 @@ defmodule GuardLooper do
       true  # We've been here before
     else
       try do
-        {new_position, new_direction} = next_position(position, direction, grid)
+        {new_position, new_direction} = next_position(direction, position, grid)
         guard_loops?(
           grid,
           new_position,
@@ -119,13 +114,13 @@ end
 start = System.monotonic_time(:microsecond)
 
 result = part1_end_grid
-  |> Map.filter(fn {_, v} -> v == :x end)
-  |> Map.keys()
-  |> List.delete(guard_pos)
-  |> Enum.map(fn loc -> Map.replace(grid, loc, "#") end)
-  |> Enum.map(fn grid -> GuardLooper.guard_loops?(grid, guard_pos, dir) end)
-  |> Enum.filter(& &1)
-  |> Enum.count()
+  |> Map.filter(fn {_, v} -> v == :x end)  # Visited spaces
+  |> Map.keys()  # Locations of visited spaces
+  |> List.delete(guard_pos)  # Guard position isn't an obstacle candidate
+  |> Enum.map(fn loc -> Map.replace(grid, loc, "#") end)  # Mark obstacles
+  |> Enum.map(fn grid -> GuardLooper.guard_loops?(grid, guard_pos, direction) end)
+  |> Enum.filter(& &1)  # Find 'true' values
+  |> Enum.count()  # And count them
   
 IO.puts("Result: #{result}")
 
