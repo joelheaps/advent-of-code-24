@@ -37,16 +37,22 @@ grid = matrix_to_map.(matrix)
 
 ```elixir
 defmodule GuardMover do
-  def next_pos({r, c}, direction) do
-    case direction do
+  def next_position({r, c}, direction, grid) do
+    try_position = case direction do
       "^" -> {r - 1, c}
       "<" -> {r, c - 1}
       ">" -> {r, c + 1}
       "v" -> {r + 1, c}
     end
+    if Map.fetch!(grid, try_position) == "#" do
+      direction = turn_right(direction)
+      next_position({r, c}, direction, grid)
+    else
+      {try_position, direction}
+    end
   end
 
-  def turn_right(direction) do
+  defp turn_right(direction) do
     case direction do
       "^" -> ">"
       "<" -> "^"
@@ -57,22 +63,12 @@ defmodule GuardMover do
 
   def walk_grid(grid, position, direction) do
     grid = Map.put(grid, position, :x)
-    
-    {new_position, new_direction} = move_guard(grid, position, direction)
-    if new_position == nil, do: grid, else: walk_grid(grid, new_position, new_direction)
-  end
-  
-  def move_guard(grid, position, direction) do
-    try_position = next_pos(position, direction)
-    
-    case Map.get(grid, try_position, nil) do
-      "#" ->
-        new_direction = turn_right(direction)
-        new_position = next_pos(position, new_direction)
-        {new_position, new_direction}
-      nil -> 
-        {nil, nil}
-      _ -> {try_position, direction}
+
+    try do
+      {new_position, new_direction} = next_position(position, direction, grid)
+      walk_grid(grid, new_position, new_direction)
+    rescue
+      KeyError -> grid
     end
   end
 end
@@ -81,16 +77,44 @@ end
   |> Map.to_list()
   |> Enum.at(0)
 
-end_grid = GuardMover.walk_grid(grid, guard_pos, dir)
+part1_end_grid = GuardMover.walk_grid(grid, guard_pos, dir)
 
-count = Map.filter(end_grid, fn {_, value} -> value == :x end)
+result = Map.filter(part1_end_grid, fn {_, value} -> value == :x end)
   |> Enum.count()
 ```
 
 ## Part 2
 
 ```elixir
-def GuardLooper do
+defmodule GuardLooper do
   import GuardMover
+
+  def guard_loops?(grid, position, direction, seen \\ MapSet.new()) do
+    if MapSet.member?(seen, {position, direction}) do
+      true  # We've been here before
+    else
+      try do
+        {new_position, new_direction} = next_position(position, direction, grid)
+        guard_loops?(
+          grid,
+          new_position,
+          new_direction,
+          MapSet.put(seen, {position, direction})
+        )
+      rescue
+        KeyError -> false  # Exited grid, key not found
+      end
+    end    
+  end
 end
+
+result = part1_end_grid
+  |> Map.filter(fn {_, v} -> v == :x end)
+  |> Map.keys()
+  |> Enum.filter(& &1 != guard_pos)
+  |> Enum.map(fn loc ->
+    Map.replace(grid, loc, "#") |> GuardLooper.guard_loops?(guard_pos, dir)
+  end)
+  |> Enum.filter(& &1)
+  |> Enum.count()
 ```
