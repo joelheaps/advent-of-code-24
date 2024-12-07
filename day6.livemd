@@ -44,6 +44,7 @@ defmodule GuardMover do
       ">" -> {r, c + 1}
       "v" -> {r + 1, c}
     end
+    
     if Map.fetch!(grid, try_position) == "#" do
       direction = turn_right(direction)
       next_position({r, c}, direction, grid)
@@ -62,7 +63,7 @@ defmodule GuardMover do
   end
 
   def walk_grid(grid, position, direction) do
-    grid = Map.put(grid, position, :x)
+    grid = Map.put(grid, position, :x)  # Mark as visited
 
     try do
       {new_position, new_direction} = next_position(position, direction, grid)
@@ -73,6 +74,8 @@ defmodule GuardMover do
   end
 end
 
+start = System.monotonic_time(:microsecond)
+
 {guard_pos, dir} = Map.filter(grid, fn {_, value} -> value in ["^", "<", ">", "v"] end)
   |> Map.to_list()
   |> Enum.at(0)
@@ -81,6 +84,11 @@ part1_end_grid = GuardMover.walk_grid(grid, guard_pos, dir)
 
 result = Map.filter(part1_end_grid, fn {_, value} -> value == :x end)
   |> Enum.count()
+
+IO.puts("Result: #{result}")
+
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
 ```
 
 ## Part 2
@@ -108,13 +116,19 @@ defmodule GuardLooper do
   end
 end
 
+start = System.monotonic_time(:microsecond)
+
 result = part1_end_grid
   |> Map.filter(fn {_, v} -> v == :x end)
   |> Map.keys()
-  |> Enum.filter(& &1 != guard_pos)
-  |> Enum.map(fn loc ->
-    Map.replace(grid, loc, "#") |> GuardLooper.guard_loops?(guard_pos, dir)
-  end)
+  |> List.delete(guard_pos)
+  |> Enum.map(fn loc -> Map.replace(grid, loc, "#") end)
+  |> Enum.map(fn grid -> GuardLooper.guard_loops?(grid, guard_pos, dir) end)
   |> Enum.filter(& &1)
   |> Enum.count()
+  
+IO.puts("Result: #{result}")
+
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
 ```
