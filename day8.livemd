@@ -1,0 +1,120 @@
+<!-- livebook:{"file_entries":[{"name":"day6_example.txt","type":"attachment"},{"name":"day6_input.txt","type":"attachment"},{"name":"day7-ex.txt","type":"attachment"},{"name":"day7-in.txt","type":"attachment"},{"name":"day8-ex.txt","type":"attachment"},{"name":"day8-in.txt","type":"attachment"}]} -->
+
+# Day 8
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"}
+])
+```
+
+## Part 1
+
+```elixir
+matrix = Kino.FS.file_path("day8-in.txt")
+  |> File.read!()
+  |> String.trim()
+  |> String.split("\n")
+  |> Enum.map(&String.graphemes/1)
+
+matrix_to_map = fn matrix ->
+  row_count = length(matrix) - 1
+  col_count = length(Enum.at(matrix, 0)) - 1
+
+  Stream.flat_map(0..row_count, fn row ->
+    Stream.map(0..col_count, fn col ->
+      {
+        {row, col},
+        Enum.at(matrix, row) |> Enum.at(col)
+      }
+    end)
+  end)
+  |> Enum.into(%{})
+end
+
+grid = matrix_to_map.(matrix)
+```
+
+```elixir
+defmodule Antinode do
+  def get({x, y}, {x1, y1}) do
+    {x1 - (x - x1), y1 - (y - y1)}
+  end
+
+  def from_list(_, []), do: []
+  def from_list(a, [b | rest]) do
+    this = if a != b, do: [get(a, b), get(b, a)], else: []
+    this ++ from_list(a, rest)
+  end
+end
+
+start = System.monotonic_time(:microsecond)
+
+waves = Map.values(grid) |> MapSet.new() |> MapSet.delete(".")
+valid_locs = Map.keys(grid)
+
+result = waves
+  |> Stream.map(fn wave ->  # Get tower locations
+      Map.filter(grid, fn {_, v} -> v == wave end) 
+      |> Map.keys() 
+    end)
+  |> Stream.flat_map(fn node_list ->
+      Stream.flat_map(node_list, fn node ->
+        Antinode.from_list(node, node_list)
+      end)
+    end)
+  |> Stream.uniq()
+  |> Stream.filter(& &1 in valid_locs)
+  |> Enum.count()
+
+IO.puts("Result: #{result}")
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
+```
+
+## Part 2
+
+```elixir
+defmodule Harmonodes do
+  import Antinode, only: [get: 2]
+
+  def rget(a, b, row_lim, col_lim, acc \\ [])
+  def rget(a, b = {x1, y1}, row_lim, col_lim, acc)
+    when 0 <= x1 and x1 <= row_lim and 0 <= y1 and y1 <= col_lim do
+    antinode = get(a, b)
+    rget(b, antinode, row_lim, col_lim, [antinode | acc])
+  end
+  def rget(_, _, _, _, [_discard | acc]), do: acc
+
+  def from_list(a, nodes, row_lim, col_lim)
+  def from_list(_, [], _, _), do: []
+  def from_list(a, [b | rest], row_lim, col_lim) do
+    this = if a != b do
+      [rget(a, b, row_lim, col_lim), rget(b, a, row_lim, col_lim)] |> List.flatten()
+    else
+      []
+    end
+    this ++ [a] ++ from_list(a, rest, row_lim, col_lim)
+  end
+end
+
+start = System.monotonic_time(:microsecond)
+
+waves = Map.values(grid) |> Stream.uniq() |> Stream.filter(& &1 != ".")
+{{row_lim, col_lim}, _} = Map.to_list(grid) |> Enum.max()
+
+result = waves
+  |> Stream.map(fn wave -> Map.filter(grid, fn {_, v} -> v == wave end) |> Map.keys() end)
+  |> Stream.flat_map(fn node_set ->
+      Stream.flat_map(node_set, fn node ->
+        Harmonodes.from_list(node, node_set, row_lim, col_lim)
+      end)
+    end)
+  |> Enum.uniq()
+  |> Enum.filter(& &1 in valid_locs)
+  |> Enum.count()
+
+IO.puts("Result: #{result}")
+elapsed = System.monotonic_time(:microsecond) - start
+IO.puts "Finished in #{elapsed / 1000}ms"
+```
