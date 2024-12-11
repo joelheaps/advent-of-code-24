@@ -1,0 +1,69 @@
+<!-- livebook:{"file_entries":[{"name":"day6_example.txt","type":"attachment"},{"name":"day6_input.txt","type":"attachment"},{"name":"day7-ex.txt","type":"attachment"},{"name":"day7-in.txt","type":"attachment"},{"name":"day8-ex.txt","type":"attachment"},{"name":"day8-in.txt","type":"attachment"}]} -->
+
+# Day 11
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"},
+  {:kino_aoc, "~> 0.1.7"}
+])
+```
+
+## Part 1
+
+```elixir
+{_, input} = if true do
+  KinoAOC.download_puzzle("2024", "11", System.fetch_env!("LB_AOC_SESSION"))
+else
+  {:ok, "125 17"}
+end
+
+input = input |> String.trim() |> String.split() |> Enum.map(&String.to_integer/1)
+```
+
+```elixir
+defmodule Blinker do
+  def change(0), do: [1]
+  def change(stone) do
+    digits = Integer.digits(stone) |> length()  # Digit count
+    cond do
+      rem(digits, 2) == 0 -> 
+        factor = :math.pow(10, digits / 2) |> trunc()
+        [
+          :math.floor(stone / factor) |> trunc(),  # Left digits
+          rem(stone, factor)  # Right digits
+        ]
+      true -> [stone * 2024]
+    end
+  end
+
+  def blink(stones, max, depth \\ -1, acc \\ 0, cache \\ %{})
+  def blink(_, max, max, _, cache), do: {1, cache}
+  def blink([], _, _, acc, cache), do: {acc, cache}
+  def blink([first | stones], max, depth, acc, cache) do
+    cached_val = Map.get(cache, {first, depth})
+    
+    {sum, cache} = if cached_val == nil do
+      {sum, out_cache} = blink(change(first), max, depth + 1, 0, cache)
+      new_cache = Map.put(cache, {first, depth}, sum) |> Map.merge(out_cache)
+      {sum, new_cache}
+    else
+      {cached_val, cache}
+    end
+    
+    blink(stones, max, depth, acc + sum, cache)
+  end
+end
+
+{result, _} = Blinker.blink(input, 25)
+result
+```
+
+## Part 2
+
+```elixir
+{result, _} = Blinker.blink(input, 75)
+result
+```
+
+<!-- livebook:{"offset":1765,"stamp":{"token":"XCP.MP-kjamFJ6wJ3hyBzo8qpw6KnI2RDylVCIoN7klP0I5x3QvIOqCaIUNXgJW0YtaItjfpfzVuOK1TImzNyZYEw4vcW3d3MWXXYlRbte-rGAUoj1Z1UeY","version":2}} -->
