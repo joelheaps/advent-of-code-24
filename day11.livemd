@@ -12,7 +12,7 @@ Mix.install([
 ## Part 1
 
 ```elixir
-{_, input} = if true do
+{_, input} = if false do
   KinoAOC.download_puzzle("2024", "11", System.fetch_env!("LB_AOC_SESSION"))
 else
   {:ok, "125 17"}
@@ -37,21 +37,21 @@ defmodule Blinker do
     end
   end
 
-  def blink(stones, max, depth \\ -1, acc \\ 0, cache \\ %{})
-  def blink(_, max, max, _, cache), do: {1, cache}
-  def blink([], _, _, acc, cache), do: {acc, cache}
-  def blink([first | stones], max, depth, acc, cache) do
-    cached_val = Map.get(cache, {first, depth})
+  def blink(stones, count, acc \\ 0, cache \\ %{})
+  def blink(_, -1, _, cache), do: {1, cache}
+  def blink([], _, acc, cache), do: {acc, cache}
+  def blink([first | stones], count, acc, cache) do
+    cached_val = Map.get(cache, {first, count})
     
     {sum, cache} = if cached_val == nil do
-      {sum, out_cache} = blink(change(first), max, depth + 1, 0, cache)
-      new_cache = Map.put(cache, {first, depth}, sum) |> Map.merge(out_cache)
+      {sum, out_cache} = change(first) |> blink(count - 1, 0, cache)
+      new_cache = Map.put(cache, {first, count}, sum) |> Map.merge(out_cache)
       {sum, new_cache}
     else
       {cached_val, cache}
     end
     
-    blink(stones, max, depth, acc + sum, cache)
+    blink(stones, count, acc + sum, cache)
   end
 end
 
@@ -62,8 +62,47 @@ result
 ## Part 2
 
 ```elixir
-{result, _} = Blinker.blink(input, 75)
+{result, _} = Blinker.blink(input, 25)
 result
 ```
 
-<!-- livebook:{"offset":1765,"stamp":{"token":"XCP.MP-kjamFJ6wJ3hyBzo8qpw6KnI2RDylVCIoN7klP0I5x3QvIOqCaIUNXgJW0YtaItjfpfzVuOK1TImzNyZYEw4vcW3d3MWXXYlRbte-rGAUoj1Z1UeY","version":2}} -->
+## Experiments
+
+Based on [work that isn't mine](https://github.com/mexicat/aoc-2024/blob/main/lib/aoc/day_11.ex) -- I really admired the solution that @mexicat posted in [the day 11 thread on ElixirForum](https://elixirforum.com/t/advent-of-code-2024-day-11/68028/3) and wanted to try my hand at a similar implementation.
+
+```elixir
+defmodule MapBlinker do
+  def blink(stones, 0), do: stones |> Map.values() |> Enum.sum()
+  def blink(stones, count) do
+    stones |> Map.to_list() |> do_blink(%{}) |> blink(count - 1)
+  end
+  
+  def do_blink([], output), do: output
+  def do_blink([{0, count} | rest], output) do
+    output = Map.update(output, 1, count, & &1 + count)
+    do_blink(rest, output)
+  end
+  def do_blink([{val, count} | rest], output) do
+    digits = Integer.digits(val) |> length()  # Digit count
+    
+    output = cond do
+      rem(digits, 2) == 0 ->
+        factor = :math.pow(10, digits / 2) |> trunc()
+        left = :math.floor(val / factor) |> trunc()
+        right = rem(val, factor)
+        # Add each side of split val to output map
+        Map.update(output, left, count, & &1 + count)
+          |> Map.update(right, count, & &1 + count)
+      
+      true -> Map.update(output, val * 2024, count, & &1 + count)
+    end
+    
+    do_blink(rest, output)
+  end
+end
+
+input_map = Enum.reduce(input, %{}, fn val, acc -> Map.put(acc, val, 1) end)
+result = MapBlinker.blink(input_map, 75)
+```
+
+<!-- livebook:{"offset":3141,"stamp":{"token":"XCP.byjzb0LFeRRyeMJnEapB_BsXsj271XP50FMIYI7fuLvnv5Vo6KU-49AIpnOf58GAB4-jc5hTvHSiaMrc3L3zT0GovM0khlzUVJRvR6Ho_CSQw6wr6QM","version":2}} -->
