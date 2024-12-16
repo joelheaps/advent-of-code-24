@@ -1,0 +1,125 @@
+<!-- livebook:{"file_entries":[{"name":"day6_example.txt","type":"attachment"},{"name":"day6_input.txt","type":"attachment"},{"name":"day7-ex.txt","type":"attachment"},{"name":"day7-in.txt","type":"attachment"},{"name":"day8-ex.txt","type":"attachment"},{"name":"day8-in.txt","type":"attachment"}]} -->
+
+# Day 15
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"},
+  {:kino_aoc, "~> 0.1.7"}
+])
+```
+
+## Part 1
+
+```elixir
+example = """
+##########
+#..O..O.O#
+#......O.#
+#.OO..O.O#
+#..O@..O.#
+#O#..O...#
+#O..O..O.#
+#.OO.O.OO#
+#....O...#
+##########
+
+<vv>^<v^>v>^vv^v>v<>v^v<v<^vv<<<^><<><>>v<vvv<>^v^>^<<<><<v<<<v^vv^v>^
+vvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v
+><>vv>v^v^<>><>>>><^^>vv>v<^^^>>v^v^<^^>v^^>v^<^v>v<>>v^v^<v>v^^<^^vv<
+<<v<^>>^^^^>>>v^<>vvv^><v<<<>^^^vv^<vvv>^>v<^^^^v<>^>vvvv><>>v^<<^^^^^
+^><^><>>><>^^<<^^v>>><^<v>^<vv>>v>>>^v><>^v><<<<v>>v<v<v>vvv>^<><<>^><
+^>><>^v<><^vvv<^^<><v<<<<<><^v<<<><<<^^<v<^^^><^>>^<v^><<<^>>^v<v^v<v^
+>^>>^v>vv>^<<^v<>><<><<v<<v><>v<^vv<<<>^^v^>^^>>><<^v>>v^v><^^>>^<>vv^
+<><^^>^^^<><vvvvv^v<v<<>^v<v>v<<^><<><<><<<^^<<<^<<>><<><^^^>^^<>^>v<>
+^^>vv<^v^v<vv>^<><v<^v>^^^>>>^^vvv^>vvv<>>>^<^>>>>>^<<^v>^vvv<>^<><<v>
+v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^
+"""
+
+{:ok, input} = if true do
+  KinoAOC.download_puzzle("2024", "15", System.fetch_env!("LB_AOC_SESSION"))
+else
+  {:ok, example}
+end
+  
+[grid, moves] = input
+  |> String.trim()
+  |> String.split("\n\n")
+  |> Enum.map(&String.trim/1)
+
+moves = String.graphemes(moves) |> Enum.filter(& &1 != "\n")
+
+grid = grid |> String.split("\n") |> Enum.map(&String.graphemes/1)
+
+{size_r, size_c} = {  # Used for printing
+  length(grid) - 1,
+  length(Enum.at(grid, 0)) - 1
+}
+
+grid = for {row, i} <- Enum.with_index(grid) do
+  for {col, j} <- Enum.with_index(row) do
+    {{i, j}, col}
+  end
+end |> List.flatten()
+
+bot_start = List.keyfind(grid, "@", 1)
+grid = Enum.into(grid, %{})
+```
+
+```elixir
+# Make a pretty picture
+print_grid = fn grid ->
+  for r <- 0..size_r do
+    row = for c <- 0..size_c do
+      Map.get(grid, {r, c})
+    end
+    IO.puts(List.to_string(row))
+  end
+end
+
+defmodule Part1 do
+  # Get coordinate and value of cell in given direction
+  def get_next(dir, {ri, ci}, grid) do
+    pos = case dir do
+      ">" -> {ri, ci + 1}
+      "<" -> {ri, ci - 1}
+      "v" -> {ri + 1, ci}
+      "^" -> {ri - 1, ci}
+    end
+    val = Map.get(grid, pos)
+    {pos, val}
+  end
+
+  # Handles lists of directions
+  def move(grid, _, []), do: grid
+  def move(grid, pos_val, [dir | rest]) do
+    {pv1, grid} = move(grid, pos_val, dir)
+    move(grid, pv1, rest)
+  end
+
+  # Returns position, value, and grid (with no change for invalid moves)
+  def move(grid, this = {pos, val}, dir) do
+    {pos1, val1} = get_next(dir, pos, grid)
+    
+    case val1 do
+      "#" -> {this, grid}
+      "." -> grid = Map.replace(grid, pos1, val) |> Map.replace(pos, ".")
+        {{pos1, val}, grid}
+      "O" -> {pv2, grid} = move(grid, {pos1, val1}, dir) 
+        if pv2 != {pos1, val1}, do: grid |> move(this, dir), else: {this, grid}
+    end
+  end
+end
+
+grid = Part1.move(grid, bot_start, moves)
+print_grid.(grid)
+```
+
+```elixir
+result = Map.to_list(grid)
+  |> Enum.filter(fn {_, v} -> v == "O" end)  # Filter to boxes
+  |> Enum.map(fn {{r, c}, _} -> 100 * r + c end)  # Calculate coordinates
+  |> Enum.sum()
+```
+
+<!-- livebook:{"offset":3327,"stamp":{"token":"XCP.bnJJ19pozAJJ81mJsKuqjl6O68NVxMWZM2TN-YknWJ7KU4OhY3FvpxwHY-qSbvu58rS86ENtTgKjKdIkOGmDR-8uglzRBdEgRNue6SP8c2wxRw56SeY","version":2}} -->
