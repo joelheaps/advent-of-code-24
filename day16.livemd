@@ -1,0 +1,129 @@
+<!-- livebook:{"file_entries":[{"name":"day6_example.txt","type":"attachment"},{"name":"day6_input.txt","type":"attachment"},{"name":"day7-ex.txt","type":"attachment"},{"name":"day7-in.txt","type":"attachment"},{"name":"day8-ex.txt","type":"attachment"},{"name":"day8-in.txt","type":"attachment"}]} -->
+
+# Day 16
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.14.2"},
+  {:kino_aoc, "~> 0.1.7"},
+  {:libgraph, "~> 0.16.0"}
+])
+```
+
+## Part 1
+
+```elixir
+example = """
+#################
+#...#...#...#..E#
+#.#.#.#.#.#.#.#.#
+#.#.#.#...#...#.#
+#.#.#.#.###.#.#.#
+#...#.#.#.....#.#
+#.#.#.#.#.#####.#
+#.#...#.#.#.....#
+#.#.#####.#.###.#
+#.#.#.......#...#
+#.#.###.#####.###
+#.#.#...#.....#.#
+#.#.#.#####.###.#
+#.#.#.........#.#
+#.#.#.#########.#
+#S#.............#
+#################
+"""
+
+{:ok, input} = if true do
+  KinoAOC.download_puzzle("2024", "16", System.fetch_env!("LB_AOC_SESSION"))
+else
+  {:ok, example}
+end
+  
+grid = input
+  |> String.trim()
+  |> String.split("\n")
+  |> Enum.map(&String.graphemes/1)
+
+# Grid with values
+val_grid = for {row, i} <- Enum.with_index(grid) do
+  for {val, j} <- Enum.with_index(row) do
+    {{i, j}, val}
+  end
+end |> List.flatten()
+
+# Cost grid with enumerated directions
+cost_grid = for {{i, j}, _v} <- val_grid do
+  for dir <- [:v, :>, :<, :^] do
+    {{i, j, dir}, :inf}
+  end
+end |> List.flatten() |> Enum.into(%{})
+
+{{start_i, start_j}, _val} = List.keyfind(val_grid, "S", 1)
+{{end_i, end_j}, _val} = List.keyfind(val_grid, "E", 1)
+
+val_grid = Enum.into(val_grid, %{})
+```
+
+```elixir
+defmodule Part1 do
+  # Get new direction after a turn
+  def turn(:>, turn), do: if(turn == :l, do: :^, else: :v)
+  def turn(:v, turn), do: if(turn == :l, do: :>, else: :<)
+  def turn(:<, turn), do: if(turn == :l, do: :v, else: :^)
+  def turn(:^, turn), do: if(turn == :l, do: :<, else: :>)
+
+  # Get next location in a given direction
+  def get_next_loc(dir, {i, j}) do
+    case dir do
+      :> -> {i, j + 1}
+      :< -> {i, j - 1}
+      :^ -> {i - 1, j}
+      :v -> {i + 1, j}
+    end
+  end
+
+  # Get non-wall neighbors, costs, and directions
+  def get_neighbors(dir, loc, val_grid) do
+    ldir = turn(dir, :l)
+    rdir = turn(dir, :r)
+
+    f = {dir |> get_next_loc(loc), 1, dir}
+    l = {ldir |> get_next_loc(loc), 1001, ldir}
+    r = {rdir |> get_next_loc(loc), 1001, rdir}
+
+    # Filter walls; return list of valid neighbors
+    Enum.filter([f, l, r], fn {loc1, _c1, _d1} ->
+      val = Map.fetch!(val_grid, loc1)
+      val != "#"
+    end)
+  end
+  
+  def walk_grid([], cost_grid, _), do: cost_grid
+  
+  def walk_grid([{{i, j}, _c, dir} | rest_to_check], cost_grid, val_grid) do
+    my_cost = Map.get(cost_grid, {i, j, dir})
+    
+    # Find neighbors who have a lower cost path than previously known
+    neighs_to_check = get_neighbors(dir, {i, j}, val_grid)
+      |> Enum.filter(fn {{i, j}, ncost, ndir} ->
+        ncost + my_cost < Map.fetch!(cost_grid, {i, j, ndir})
+      end)
+
+    # Update cost grid with new values
+    cost_grid = Enum.reduce(neighs_to_check, cost_grid, fn {{i, j}, ncost, ndir}, acc ->
+      Map.replace!(acc, {i, j, ndir}, ncost + my_cost)
+    end)
+
+    # Continue walking neighbors
+    walk_grid(neighs_to_check ++ rest_to_check, cost_grid, val_grid)
+  end
+end
+
+cost_grid = Map.replace!(cost_grid, {start_i, start_j, :>}, 0)
+cost_grid = Part1.walk_grid([{{start_i, start_j}, 0, :>}], cost_grid, val_grid)
+result = for dir <- [:v, :>, :<, :^] do
+  Map.get(cost_grid, {end_i, end_j, dir})
+end |> Enum.min()
+```
+
+<!-- livebook:{"offset":3445,"stamp":{"token":"XCP.CFP1ye6FHKXf_1YDz_WKI_XmUs4xIST_qnaTBSjpirdgrxfwuLPw67YQrh7zawIg4ojGYPaQGMiiChipgLkFHbK86zXMzh0WT5_iIWfb_ckR_QrhS5U","version":2}} -->

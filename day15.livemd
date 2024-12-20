@@ -122,4 +122,4 @@ result = Map.to_list(grid)
   |> Enum.sum()
 ```
 
-<!-- livebook:{"offset":3327,"stamp":{"token":"XCP.bnJJ19pozAJJ81mJsKuqjl6O68NVxMWZM2TN-YknWJ7KU4OhY3FvpxwHY-qSbvu58rS86ENtTgKjKdIkOGmDR-8uglzRBdEgRNue6SP8c2wxRw56SeY","version":2}} -->
+<!-- livebook:{"offset":3327,"stamp":{"token":"XCP.62qwz4yj1CpkjfvQXOBWcCkAiT4bXfteUsbDg9jwn5m-gFjDQQp9VKuyFcTHxg_193KlcpNhhlx_Afy6QjswrpfSZF3Q416WoTz8JBpn5vmIlVr1EXU","version":2}} -->
