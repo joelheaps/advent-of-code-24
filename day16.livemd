@@ -51,6 +51,13 @@ val_grid = for {row, i} <- Enum.with_index(grid) do
   end
 end |> List.flatten()
 
+# Previous grid for tracking best paths
+prev_grid = for {{i, j}, _v} <- val_grid do
+  for dir <- [:v, :>, :<, :^] do
+    {{i, j, dir}, []}
+  end
+end |> List.flatten() |> Enum.into(%{})
+
 # Cost grid with enumerated directions
 cost_grid = for {{i, j}, _v} <- val_grid do
   for dir <- [:v, :>, :<, :^] do
@@ -98,32 +105,65 @@ defmodule Part1 do
     end)
   end
   
-  def walk_grid([], cost_grid, _), do: cost_grid
+  def walk_grid([], cost_grid, _, prev_grid), do: {cost_grid, prev_grid}
   
-  def walk_grid([{{i, j}, _c, dir} | rest_to_check], cost_grid, val_grid) do
+  def walk_grid([{{i, j}, _c, dir} | rest_to_check], cost_grid, val_grid, prev_grid) do
     my_cost = Map.get(cost_grid, {i, j, dir})
     
     # Find neighbors who have a lower cost path than previously known
     neighs_to_check = get_neighbors(dir, {i, j}, val_grid)
-      |> Enum.filter(fn {{i, j}, ncost, ndir} ->
-        ncost + my_cost < Map.fetch!(cost_grid, {i, j, ndir})
+      |> Enum.filter(fn {{ni, nj}, ncost, ndir} ->
+        (ncost + my_cost) <= Map.fetch!(cost_grid, {ni, nj, ndir})
       end)
 
     # Update cost grid with new values
-    cost_grid = Enum.reduce(neighs_to_check, cost_grid, fn {{i, j}, ncost, ndir}, acc ->
-      Map.replace!(acc, {i, j, ndir}, ncost + my_cost)
+    {cost_grid, prev_grid} = Enum.reduce(
+      neighs_to_check,
+      {cost_grid, prev_grid},
+      fn {{ni, nj}, ncost, ndir}, {cost_acc, prev_acc} ->
+        new_cost = ncost + my_cost
+        
+        prev_acc = if new_cost < Map.fetch!(cost_grid, {ni, nj, ndir}) do
+          Map.replace!(prev_acc, {ni, nj, ndir}, [{i, j, dir}])  # Replace path for lower cost
+        else
+          Map.update!(prev_acc, {ni, nj, ndir}, & [{i, j, dir} | &1])  # Add path for equal cost
+        end
+        
+        cost_acc = Map.replace!(cost_acc, {ni, nj, ndir}, ncost + my_cost)
+        
+        {cost_acc, prev_acc}
     end)
 
     # Continue walking neighbors
-    walk_grid(neighs_to_check ++ rest_to_check, cost_grid, val_grid)
+    walk_grid(neighs_to_check ++ rest_to_check, cost_grid, val_grid, prev_grid)
+  end
+  
+  def count_tiles([], _, acc), do: acc
+  def count_tiles([{i, j, dir} | rest], prev_grid, acc) do
+    new_tiles = Map.get(prev_grid, {i, j, dir}, []) |> MapSet.new()
+    new_tiles = MapSet.difference(new_tiles, acc) |> MapSet.to_list()
+    count_tiles(new_tiles ++ rest, prev_grid, MapSet.put(acc, {i, j}))
   end
 end
 
+# Prep
 cost_grid = Map.replace!(cost_grid, {start_i, start_j, :>}, 0)
-cost_grid = Part1.walk_grid([{{start_i, start_j}, 0, :>}], cost_grid, val_grid)
+
+# Walk
+{cost_grid, prev_grid} = Part1.walk_grid([{{start_i, start_j}, 0, :>}], cost_grid, val_grid, prev_grid)
 result = for dir <- [:v, :>, :<, :^] do
   Map.get(cost_grid, {end_i, end_j, dir})
 end |> Enum.min()
 ```
 
-<!-- livebook:{"offset":3445,"stamp":{"token":"XCP.CFP1ye6FHKXf_1YDz_WKI_XmUs4xIST_qnaTBSjpirdgrxfwuLPw67YQrh7zawIg4ojGYPaQGMiiChipgLkFHbK86zXMzh0WT5_iIWfb_ckR_QrhS5U","version":2}} -->
+## Part 2
+
+```elixir
+result = 
+  for dir <- [:>, :<, :^, :v] do
+    Part1.count_tiles([{end_i, end_j, dir}], prev_grid, MapSet.new())
+      |> MapSet.to_list() |> Enum.count()
+  end |> Enum.filter(& &1 > 1) |> Enum.min()
+```
+
+<!-- livebook:{"offset":4731,"stamp":{"token":"XCP.2vsTcx7Y6jYOYssZwxu6LijLIqQ7xs8cG-hHlbb_8FKwdbaKttBjbnwu0_bsCz7gCtzCSokaSUWadBGvBFQi0QPbND9PQ1CgEXUFWFw6Jt3LO7pcGcM","version":2}} -->
